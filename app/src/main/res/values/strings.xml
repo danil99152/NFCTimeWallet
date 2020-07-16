@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">NFCTest</string>
+    <string name="name_message">Message</string>
+</resources>
