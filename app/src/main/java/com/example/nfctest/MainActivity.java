@@ -74,7 +74,6 @@ public class MainActivity extends AppCompatActivity {
         disableForegroundDispatchSystem();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -83,21 +82,12 @@ public class MainActivity extends AppCompatActivity {
         final DataAdapter dataAdapter = new DataAdapter(this, messages);
         mMessagesRecycler.setAdapter(dataAdapter);
         if (intent.hasExtra(NfcAdapter.EXTRA_TAG)) {
-            try {
-                mMessagesRecycler.smoothScrollToPosition(Objects.requireNonNull(intent.getDataString()).length());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            messages.add(intent.getDataString());
             Toast.makeText(this,  intent.getDataString(), Toast.LENGTH_SHORT).show();
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    Log.d("Полученный тэг", Objects.requireNonNull(intent.getDataString()));
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (intent.getDataString() != null){
+                mMessagesRecycler.smoothScrollToPosition(intent.getDataString().length());
+                messages.add(intent.getDataString());
+                Log.d("Полученный тэг", intent.getDataString());
             }
-
             Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
 
             // TODO: implement nfc message constructing logic here.
