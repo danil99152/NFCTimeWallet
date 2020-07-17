@@ -92,12 +92,8 @@ public class MainActivity extends AppCompatActivity {
 
             // TODO: implement nfc message constructing logic here.
             byte[] payload = "my string".getBytes();
-
             NdefRecord ndefRecord = NdefRecord.createExternal("nfctutorials", "externaltype", payload);
-            //
-
             NdefMessage ndefMessage = new NdefMessage(new NdefRecord[]{ndefRecord});
-
             writeNdefMessage(tag, ndefMessage);
         }
     }
