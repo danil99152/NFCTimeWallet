@@ -1,29 +1,34 @@
 package com.example.nfctest;
 
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.nfc.tech.NdefFormatable;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.Log;
+import android.view.Display;
+import android.view.WindowManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
-import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -33,13 +38,28 @@ public class MainActivity extends AppCompatActivity {
 
     ArrayList<String> messages = new ArrayList<>();
 
+    TextView tvText;
+    SensorManager sensorManager;
+    Sensor sensorAccel;
+    Sensor sensorMagnet;
+
+    StringBuilder sb = new StringBuilder();
+
+    Timer timer;
+
+    int rotation;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
+        setContentView(R.layout.main);
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
+
+        tvText = findViewById(R.id.tvText);
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorMagnet = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
     }
 
 
@@ -65,6 +85,32 @@ public class MainActivity extends AppCompatActivity {
         }
 
         enableForegroundDispatchSystem();
+
+        sensorManager.registerListener(listener, sensorAccel, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(listener, sensorMagnet, SensorManager.SENSOR_DELAY_NORMAL);
+
+
+
+        timer = new Timer();
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        getActualDeviceOrientation();
+                        showInfo();
+                        Log.d("наклон вдоль дисплея", String.valueOf(valuesResult[1]));
+                        Log.d("наклон поперек дисплея", String.valueOf(valuesResult[2]));
+                    }
+                });
+            }
+        };
+        timer.schedule(task, 0, 400);
+
+        WindowManager windowManager = ((WindowManager) getSystemService(Context.WINDOW_SERVICE));
+        Display display = windowManager.getDefaultDisplay();
+        rotation = display.getRotation();
     }
 
     @Override
@@ -72,7 +118,62 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
 
         disableForegroundDispatchSystem();
+        sensorManager.unregisterListener(listener);
+        timer.cancel();
     }
+
+    //    String format(float values[]) {
+//        return String.format("%1$.1f\t\t%2$.1f\t\t%3$.1f", values[0], values[1], values[2]);
+//    }
+
+    void showInfo() {
+        sb.setLength(0);
+        if (valuesResult[1] >= -90.0 && valuesResult[1] <= 90.0 && valuesResult[2] >= -90.0 && valuesResult[2] <= 90.0){
+            sb.append("JSON: " + "{ 1, 1 }");
+        }
+        else sb.append("JSON: " + "{ 0, 1 }");
+        tvText.setText(sb);
+    }
+
+    float[] r = new float[9];
+
+    void getActualDeviceOrientation() {
+        SensorManager.getRotationMatrix(r, null, valuesAccel, valuesMagnet);
+        SensorManager.getOrientation(r, valuesResult);
+
+        valuesResult[0] = (float) Math.toDegrees(valuesResult[0]);
+        valuesResult[1] = (float) Math.toDegrees(valuesResult[1]);
+        valuesResult[2] = (float) Math.toDegrees(valuesResult[2]);
+        return;
+    }
+
+    float[] valuesAccel = new float[3];
+    float[] valuesMagnet = new float[3];
+    float[] valuesResult = new float[3];
+
+
+    SensorEventListener listener = new SensorEventListener() {
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            switch (event.sensor.getType()) {
+                case Sensor.TYPE_ACCELEROMETER:
+                    for (int i=0; i < 3; i++){
+                        valuesAccel[i] = event.values[i];
+                    }
+                    break;
+                case Sensor.TYPE_MAGNETIC_FIELD:
+                    for (int i=0; i < 3; i++){
+                        valuesMagnet[i] = event.values[i];
+                    }
+                    break;
+            }
+        }
+    };
 
     @Override
     protected void onNewIntent(Intent intent) {
