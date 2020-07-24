@@ -23,20 +23,17 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OutcomingNfcManager.NfcActivity{
 
     NfcAdapter nfcAdapter;
-    RecyclerView mMessagesRecycler;
 
-    ArrayList<String> messages = new ArrayList<>();
+    int money = 100;
+    String outMessage;
 
     TextView tvText;
     SensorManager sensorManager;
@@ -56,12 +53,29 @@ public class MainActivity extends AppCompatActivity {
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
 
+        if (!isNfcSupported()) {
+            Toast.makeText(this, "Nfc is not supported on this device", Toast.LENGTH_SHORT).show();
+            finish();
+        }
+        if (!nfcAdapter.isEnabled()) {
+            Toast.makeText(this, "NFC disabled on this device. Turn on to proceed", Toast.LENGTH_SHORT).show();
+        }
+
         tvText = findViewById(R.id.tvText);
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorMagnet = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+        // encapsulate sending logic in a separate class
+        OutcomingNfcManager outcomingNfccallback = new OutcomingNfcManager(this);
+        this.nfcAdapter.setOnNdefPushCompleteCallback(outcomingNfccallback, this);
+        this.nfcAdapter.setNdefPushMessageCallback(outcomingNfccallback, this);
     }
 
+    private boolean isNfcSupported() {
+        this.nfcAdapter = NfcAdapter.getDefaultAdapter(this);
+        return this.nfcAdapter != null;
+    }
 
     @Override
     protected void onResume() {
@@ -100,8 +114,9 @@ public class MainActivity extends AppCompatActivity {
                     public void run() {
                         getActualDeviceOrientation();
                         showInfo();
-                        Log.d("наклон вдоль дисплея", String.valueOf(valuesResult[1]));
-                        Log.d("наклон поперек дисплея", String.valueOf(valuesResult[2]));
+//                        Log.d("наклон вдоль дисплея", String.valueOf(valuesResult[1]));
+//                        Log.d("наклон поперек дисплея", String.valueOf(valuesResult[2]));
+                        setOutGoingMessage();
                     }
                 });
             }
@@ -128,10 +143,7 @@ public class MainActivity extends AppCompatActivity {
 
     void showInfo() {
         sb.setLength(0);
-        if (valuesResult[1] >= -90.0 && valuesResult[1] <= 90.0 && valuesResult[2] >= -90.0 && valuesResult[2] <= 90.0){
-            sb.append("JSON: " + "{ 1, 1 }");
-        }
-        else sb.append("JSON: " + "{ 0, 1 }");
+        sb.append(money);
         tvText.setText(sb);
     }
 
@@ -178,24 +190,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        mMessagesRecycler = findViewById(R.id.messages_recycler);
-        mMessagesRecycler.setLayoutManager(new LinearLayoutManager(this));
-        final DataAdapter dataAdapter = new DataAdapter(this, messages);
-        mMessagesRecycler.setAdapter(dataAdapter);
-        if (intent.hasExtra(NfcAdapter.EXTRA_TAG)) {
-            Toast.makeText(this,  intent.getDataString(), Toast.LENGTH_SHORT).show();
-            if (intent.getDataString() != null){
-                mMessagesRecycler.smoothScrollToPosition(intent.getDataString().length());
-                messages.add(intent.getDataString());
-                Log.d("Полученный тэг", intent.getDataString());
-            }
-            Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+        String action = intent.getAction();
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
+            Parcelable[] parcelables = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
 
-            // TODO: implement nfc message constructing logic here.
-            byte[] payload = "my string".getBytes();
-            NdefRecord ndefRecord = NdefRecord.createExternal("nfctutorials", "externaltype", payload);
-            NdefMessage ndefMessage = new NdefMessage(new NdefRecord[]{ndefRecord});
-            writeNdefMessage(tag, ndefMessage);
+            NdefMessage inNdefMessage = (NdefMessage) parcelables[0];
+            NdefRecord[] inNdefRecords = inNdefMessage.getRecords();
+            NdefRecord ndefRecord_0 = inNdefRecords[0];
+
+            //Полученное сообщение
+            String inMessage = new String(ndefRecord_0.getPayload());
+            Toast.makeText(this, inMessage, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -283,4 +288,20 @@ public class MainActivity extends AppCompatActivity {
         }
         return ndefMessage;
     }
+
+    private void setOutGoingMessage() {
+        if (valuesResult[1] >= -90.0 && valuesResult[1] <= 90.0 && valuesResult[2] >= -90.0 && valuesResult[2] <= 90.0) {
+            if (money < 0) outMessage = "{1}";
+            else outMessage = "{0}";
+        }
+    }
+
+    @Override
+    public String getOutcomingMessage() {
+        return outMessage;
+    }
+
+    @Override
+    public void signalResult() {}
+
 }
