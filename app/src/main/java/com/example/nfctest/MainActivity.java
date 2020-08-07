@@ -11,12 +11,8 @@ import android.hardware.SensorManager;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
-import android.nfc.Tag;
-import android.nfc.tech.Ndef;
-import android.nfc.tech.NdefFormatable;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.util.Log;
 import android.view.Display;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -90,10 +86,9 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
                 NdefRecord ndefRecord = ndefMessage.getRecords()[0];
 
-                String payload = new String(ndefRecord.getPayload());
+                final String payload = new String(ndefRecord.getPayload());
 
                 Toast.makeText(this, payload, Toast.LENGTH_SHORT).show();
-
             }
 
         }
@@ -199,8 +194,20 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
             NdefRecord ndefRecord_0 = inNdefRecords[0];
 
             //Полученное сообщение
-            String inMessage = new String(ndefRecord_0.getPayload());
+            final String inMessage = new String(ndefRecord_0.getPayload());
             Toast.makeText(this, inMessage, Toast.LENGTH_SHORT).show();
+
+            int oldSum = money;
+            int receivedSum = Integer.parseInt(inMessage);
+            while (money != oldSum + receivedSum) {
+                money++;
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            Toast.makeText(this, "получившаяся сумма: " + money, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -219,66 +226,6 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         nfcAdapter.disableForegroundDispatch(this);
     }
 
-    private void formatTag(Tag tag, NdefMessage ndefMessage) {
-        try {
-
-            NdefFormatable ndefFormatable = NdefFormatable.get(tag);
-
-            if (ndefFormatable == null) {
-                Toast.makeText(this, "Tag is not ndef formatable!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-
-            ndefFormatable.connect();
-            ndefFormatable.format(ndefMessage);
-            ndefFormatable.close();
-
-            Toast.makeText(this, "Tag writen!", Toast.LENGTH_SHORT).show();
-
-        } catch (Exception e) {
-            Log.e("formatTag", e.getMessage());
-        }
-
-    }
-
-    private void writeNdefMessage(Tag tag, NdefMessage ndefMessage) {
-
-        try {
-
-            if (tag == null) {
-                Toast.makeText(this, "Tag object cannot be null", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            Ndef ndef = Ndef.get(tag);
-
-            if (ndef == null) {
-                // format tag with the ndef format and writes the message.
-                formatTag(tag, ndefMessage);
-            } else {
-                ndef.connect();
-
-                if (!ndef.isWritable()) {
-                    Toast.makeText(this, "Tag is not writable!", Toast.LENGTH_SHORT).show();
-
-                    ndef.close();
-                    return;
-                }
-
-                ndef.writeNdefMessage(ndefMessage);
-                ndef.close();
-
-                Toast.makeText(this, "Tag writen!", Toast.LENGTH_SHORT).show();
-
-            }
-
-        } catch (Exception e) {
-            Log.e("writeNdefMessage", e.getMessage());
-        }
-
-    }
-
     public NdefMessage getNdefMessageFromIntent(Intent intent) {
         NdefMessage ndefMessage = null;
         Parcelable[] extra = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
@@ -291,8 +238,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     private void setOutGoingMessage() {
         if (valuesResult[1] >= -90.0 && valuesResult[1] <= 90.0 && valuesResult[2] >= -90.0 && valuesResult[2] <= 90.0) {
-            if (money < 0) outMessage = "{1}";
-            else outMessage = "{0}";
+            outMessage = String.valueOf(money);
         }
     }
 
@@ -302,6 +248,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
     }
 
     @Override
-    public void signalResult() {}
-
+    public void signalResult() {
+        money = 0;
+    }
 }
