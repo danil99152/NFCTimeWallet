@@ -31,8 +31,10 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     NfcAdapter nfcAdapter;
 
-    int money = 100;
-    int sendingMoney = 0;
+    int secs = 0;
+    int mins = 0;
+    int hours = 24;
+    int sendingTime = 0;
     String outMessage;
 
     TextView tvText;
@@ -85,20 +87,19 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
                     //Нажатие
                     case MotionEvent.ACTION_DOWN:
                         lastAction = currTime;
-                        money = money + sendingMoney;
-                        sendingMoney = 0;
+                        hours = hours + sendingTime;
+                        sendingTime = 0;
                         break;
                     //Удержание
                     case MotionEvent.ACTION_MOVE:
                         if (currTime - lastAction >= REPEAT_INTERVAL) {
                             lastAction = currTime;
-                            if (money > 0) {
-                                money--;
-                                sendingMoney++;
+                            if (hours > 0) {
+                                hours--;
+                                sendingTime++;
                             }
-                            else Toast.makeText(MainActivity.this, "Баланс отрицательный", Toast.LENGTH_SHORT).show();
+                            else Toast.makeText(MainActivity.this, "Денег нет, но вы держитесь", Toast.LENGTH_SHORT).show();
                         }
-//                        Toast.makeText(MainActivity.this, "Чтобы обнулить сумму, нажмите еще раз", Toast.LENGTH_SHORT).show();
                         break;
                 }
                 return true;
@@ -168,10 +169,22 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (money > 0)
-                            money--;
-                        else if (sendingMoney > 0)
-                            sendingMoney--;
+                        if (secs > 0){
+                            secs--;
+                        }
+                        else {
+                            secs = secs + 59;
+                            if (mins > 0){
+                                mins--;
+                            }
+                            else {
+                                mins = mins + 59;
+                                if (hours > 0)
+                                    hours--;
+                            }
+                        }
+                        if (secs <= 0 && mins <= 0 && hours <= 0 && sendingTime > 0)
+                            sendingTime--;
                     }
                 });
             }
@@ -194,9 +207,9 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     void showInfo() {
         sb.setLength(0);
-        sb.append(money);
+        sb.append(hours + ":" + mins + ":" + secs);
         tvText.setText(sb);
-        tvSendingMoney.setText("Отправляемая сумма: " + sendingMoney);
+        tvSendingMoney.setText("Отправляемые часы: " + sendingTime);
     }
 
     float[] r = new float[9];
@@ -253,8 +266,8 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
             //Полученное сообщение
             final String inMessage = new String(ndefRecord_0.getPayload());
             int receivedSum = Integer.parseInt(inMessage);
-            money = money + receivedSum;
-            Toast.makeText(this, "Полученная сумма: " + receivedSum, Toast.LENGTH_SHORT).show();
+            hours = hours + receivedSum;
+            Toast.makeText(this, "Полученная сумма: " + receivedSum + " ч.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -285,7 +298,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     private void setOutGoingMessage() {
         if (valuesResult[1] >= -90.0 && valuesResult[1] <= 90.0 && valuesResult[2] >= -90.0 && valuesResult[2] <= 90.0) {
-            outMessage = String.valueOf(sendingMoney);
+            outMessage = String.valueOf(sendingTime);
         }
     }
 
@@ -296,6 +309,6 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     @Override
     public void signalResult() {
-        sendingMoney = 0;
+        sendingTime = 0;
     }
 }
