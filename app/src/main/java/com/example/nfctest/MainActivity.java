@@ -13,7 +13,10 @@ import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.os.SystemClock;
 import android.view.Display;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -29,9 +32,11 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
     NfcAdapter nfcAdapter;
 
     int money = 100;
+    int sendingMoney = 0;
     String outMessage;
 
     TextView tvText;
+    TextView tvSendingMoney;
     SensorManager sensorManager;
     Sensor sensorAccel;
     Sensor sensorMagnet;
@@ -58,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         }
 
         tvText = findViewById(R.id.tvText);
+        tvSendingMoney = findViewById(R.id.sendingMoney);
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorMagnet = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
@@ -66,6 +72,39 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         OutcomingNfcManager outcomingNfccallback = new OutcomingNfcManager(this);
         this.nfcAdapter.setOnNdefPushCompleteCallback(outcomingNfccallback, this);
         this.nfcAdapter.setNdefPushMessageCallback(outcomingNfccallback, this);
+
+        //обработка зажатия нижней кнопки
+        findViewById(R.id.zahzatie).setOnTouchListener(new View.OnTouchListener() {
+            private static final long REPEAT_INTERVAL = 100L; // интервал повтора в миллисекундах
+            private long lastAction = 0L;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                long currTime = SystemClock.uptimeMillis();
+                switch (event.getActionMasked()) {
+                    //Нажатие
+                    case MotionEvent.ACTION_DOWN:
+                        lastAction = currTime;
+                        money = money + sendingMoney;
+                        sendingMoney = 0;
+                        break;
+                    //Удержание
+                    case MotionEvent.ACTION_MOVE:
+                        if (currTime - lastAction >= REPEAT_INTERVAL) {
+                            lastAction = currTime;
+                            if (money > 0) {
+                                money--;
+                                sendingMoney++;
+                            }
+                            else Toast.makeText(MainActivity.this, "Баланс отрицательный", Toast.LENGTH_SHORT).show();
+                        }
+//                        Toast.makeText(MainActivity.this, "Чтобы обнулить сумму, нажмите еще раз", Toast.LENGTH_SHORT).show();
+                        break;
+                }
+                return true;
+            }
+
+        });
     }
 
     private boolean isNfcSupported() {
@@ -82,7 +121,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
             NdefMessage ndefMessage = this.getNdefMessageFromIntent(getIntent());
 
-            if(ndefMessage.getRecords().length > 0){
+            if (ndefMessage.getRecords().length > 0){
 
                 NdefRecord ndefRecord = ndefMessage.getRecords()[0];
 
@@ -121,6 +160,23 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         WindowManager windowManager = ((WindowManager) getSystemService(Context.WINDOW_SERVICE));
         Display display = windowManager.getDefaultDisplay();
         rotation = display.getRotation();
+
+        timer = new Timer();
+        TimerTask task2 = new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (money > 0)
+                            money--;
+                        else if (sendingMoney > 0)
+                            sendingMoney--;
+                    }
+                });
+            }
+        };
+        timer.schedule(task2, 0, 1000);
     }
 
     @Override
@@ -140,6 +196,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         sb.setLength(0);
         sb.append(money);
         tvText.setText(sb);
+        tvSendingMoney.setText("Отправляемая сумма: " + sendingMoney);
     }
 
     float[] r = new float[9];
@@ -195,19 +252,9 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
             //Полученное сообщение
             final String inMessage = new String(ndefRecord_0.getPayload());
-            Toast.makeText(this, inMessage, Toast.LENGTH_SHORT).show();
-
-            int oldSum = money;
             int receivedSum = Integer.parseInt(inMessage);
-            while (money != oldSum + receivedSum) {
-                money++;
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            Toast.makeText(this, "получившаяся сумма: " + money, Toast.LENGTH_SHORT).show();
+            money = money + receivedSum;
+            Toast.makeText(this, "Полученная сумма: " + receivedSum, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -238,7 +285,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     private void setOutGoingMessage() {
         if (valuesResult[1] >= -90.0 && valuesResult[1] <= 90.0 && valuesResult[2] >= -90.0 && valuesResult[2] <= 90.0) {
-            outMessage = String.valueOf(money);
+            outMessage = String.valueOf(sendingMoney);
         }
     }
 
@@ -249,6 +296,6 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
 
     @Override
     public void signalResult() {
-        money = 0;
+        sendingMoney = 0;
     }
 }
