@@ -46,6 +46,8 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
     StringBuilder sb = new StringBuilder();
 
     Timer timer;
+    Timer time;
+    boolean isTimeRunning = false;
 
     int rotation;
 
@@ -98,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
                                 hours--;
                                 sendingTime++;
                             }
-                            else Toast.makeText(MainActivity.this, "Денег нет, но вы держитесь", Toast.LENGTH_SHORT).show();
+                            else Toast.makeText(MainActivity.this, "Часов нет, но вы держитесь", Toast.LENGTH_SHORT).show();
                         }
                         break;
                 }
@@ -138,8 +140,6 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         sensorManager.registerListener(listener, sensorAccel, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(listener, sensorMagnet, SensorManager.SENSOR_DELAY_NORMAL);
 
-
-
         timer = new Timer();
         TimerTask task = new TimerTask() {
             @Override
@@ -149,8 +149,6 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
                     public void run() {
                         getActualDeviceOrientation();
                         showInfo();
-//                        Log.d("наклон вдоль дисплея", String.valueOf(valuesResult[1]));
-//                        Log.d("наклон поперек дисплея", String.valueOf(valuesResult[2]));
                         setOutGoingMessage();
                     }
                 });
@@ -162,8 +160,14 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         Display display = windowManager.getDefaultDisplay();
         rotation = display.getRotation();
 
-        timer = new Timer();
-        TimerTask task2 = new TimerTask() {
+        if (!isTimeRunning)
+          timer();
+    }
+
+    private void timer() {
+        time = new Timer();
+        isTimeRunning = true;
+        TimerTask timeTask = new TimerTask() {
             @Override
             public void run() {
                 runOnUiThread(new Runnable() {
@@ -189,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
                 });
             }
         };
-        timer.schedule(task2, 0, 1000);
+        time.schedule(timeTask, 0, 1000);
     }
 
     @Override
@@ -200,10 +204,6 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
         sensorManager.unregisterListener(listener);
         timer.cancel();
     }
-
-    //    String format(float values[]) {
-//        return String.format("%1$.1f\t\t%2$.1f\t\t%3$.1f", values[0], values[1], values[2]);
-//    }
 
     void showInfo() {
         sb.setLength(0);
