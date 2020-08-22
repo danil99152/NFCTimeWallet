@@ -173,18 +173,19 @@ public class MainActivity extends AppCompatActivity implements OutcomingNfcManag
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (secs > 0){
+                        if (hours > 0) {
+                            if (secs > 0){
                             secs--;
-                        }
-                        else {
-                            secs = secs + 59;
-                            if (mins > 0){
-                                mins--;
                             }
                             else {
-                                mins = mins + 59;
-                                if (hours > 0)
+                                secs = secs + 59;
+                                if (mins > 0){
+                                    mins--;
+                                }
+                                else {
+                                    mins = mins + 59;
                                     hours--;
+                                }
                             }
                         }
                         if (secs <= 0 && mins <= 0 && hours <= 0 && sendingTime > 0)
